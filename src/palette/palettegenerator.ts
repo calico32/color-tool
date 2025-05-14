@@ -1,0 +1,302 @@
+import type { AlpineComponent } from 'alpinejs'
+import {
+  convertOkhslToOklab,
+  formatCss,
+  lerp,
+  modeOklab,
+  useMode,
+  type Okhsl,
+} from 'culori/fn'
+import type { AlpineThis, Persist } from '../types'
+
+useMode(modeOklab) // required to format colors as oklab
+
+export interface PaletteGenerator {
+  /** hues in degrees */
+  hues: Persist<Hue[]>
+  selectedHue: string | null
+  hueCircleHue: number
+  steps: Persist<number>
+  minSaturation: Persist<number>
+  maxSaturation: Persist<number>
+  minLightness: Persist<number>
+  maxLightness: Persist<number>
+  palette: string[][]
+
+  reset(): void
+  getPermalink(): URL
+  copyPermalink(): void
+  restoreState(): void
+  computePalette(): void
+  colorForHue(hue: number, selected: boolean): string
+  addHue(): void
+  moveHue(index: number, to: number): void
+  updateHue(id: string, hue: string): void
+  deleteHue(id: string): void
+}
+
+interface PaletteGeneratorState {
+  h: number[]
+  st: number
+  s1: number
+  s2: number
+  l1: number
+  l2: number
+}
+
+interface Hue {
+  id: string
+  value: number
+}
+
+function newHue(value: number): Hue {
+  return {
+    id: Math.random().toString(36).substring(2, 15),
+    value,
+  }
+}
+
+function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  waitMs: number
+): (...args: Parameters<T>) => void {
+  let timeout: NodeJS.Timeout | null = null
+  return function (...args: Parameters<T>) {
+    if (timeout) clearTimeout(timeout)
+    timeout = setTimeout(() => func(...args), waitMs)
+  }
+}
+
+export default function (
+  this: AlpineThis<PaletteGenerator>
+): AlpineComponent<PaletteGenerator> {
+  let boundHandler: (ev: MouseEvent) => void
+  let handler = (ctx: AlpineThis<PaletteGenerator>, ev: MouseEvent) => {
+    if (ev.target === document.body) {
+      ev.preventDefault()
+      ctx.selectedHue = null
+    }
+  }
+
+  const updateUrl = debounce((ctx: AlpineThis<PaletteGenerator>) => {
+    const url = ctx.getPermalink()
+    const path = url.toString().replace(url.origin, '')
+    history.replaceState({}, '', path)
+  }, 250)
+
+  let computeRequested = false
+  function requestCompute(ctx: AlpineThis<PaletteGenerator>) {
+    if (computeRequested) return
+    computeRequested = true
+    requestAnimationFrame(() => {
+      computeRequested = false
+      ctx.computePalette()
+      updateUrl(ctx)
+    })
+  }
+
+  return {
+    hues: this.$persist(
+      [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map(newHue)
+    ),
+    selectedHue: null,
+    hueCircleHue: 0,
+    steps: this.$persist(10),
+    minSaturation: this.$persist(0.8).as('_x_min-saturation'),
+    maxSaturation: this.$persist(1).as('_x_max-saturation'),
+    minLightness: this.$persist(0.08).as('_x_min-lightness'),
+    maxLightness: this.$persist(0.954).as('_x_max-lightness'),
+
+    palette: [],
+
+    reset() {
+      if (!confirm('Are you sure you want to reset the generator?')) {
+        return
+      }
+
+      this.hues = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map(
+        newHue
+      )
+      this.selectedHue = null
+      this.hueCircleHue = 0
+      this.steps = 10
+      this.minSaturation = 0.8
+      this.maxSaturation = 1
+      this.minLightness = 0.08
+      this.maxLightness = 0.954
+      this.palette = []
+    },
+
+    getPermalink() {
+      const url = new URL(window.location.href)
+      const state: PaletteGeneratorState = {
+        h: this.hues.map((h) => h.value),
+        st: Number(this.steps),
+        s1: Number(this.minSaturation),
+        s2: Number(this.maxSaturation),
+        l1: Number(this.minLightness),
+        l2: Number(this.maxLightness),
+      }
+      const stateString = btoa(JSON.stringify(state))
+      url.hash = stateString
+      return url
+    },
+
+    copyPermalink() {
+      const url = this.getPermalink()
+      navigator.clipboard.writeText(url.toString()).then(() => {
+        alert('Permalink copied to clipboard!')
+      })
+    },
+
+    restoreState() {
+      const url = new URL(window.location.href)
+      const stateString = decodeURIComponent(url.hash.substring(1))
+      if (!stateString) return
+      try {
+        const state: PaletteGeneratorState = JSON.parse(atob(stateString))
+        this.hues = state.h.map(newHue)
+        this.steps = state.st
+        this.minSaturation = state.s1
+        this.maxSaturation = state.s2
+        this.minLightness = state.l1
+        this.maxLightness = state.l2
+      } catch (e) {
+        console.error('Failed to parse state', e)
+      }
+    },
+
+    computePalette() {
+      const {
+        hues,
+        steps,
+        minSaturation,
+        maxSaturation,
+        minLightness,
+        maxLightness,
+      } = this
+      const palette: string[][] = []
+      for (let i = 0; i < hues.length; i++) {
+        const hue = hues[i].value
+        const colors: string[] = []
+        for (let j = 1; j <= steps; j++) {
+          const t = j / steps
+          const saturation = lerp(minSaturation, maxSaturation, t)
+          const lightness = lerp(minLightness, maxLightness, t)
+
+          const color: Okhsl = {
+            mode: 'okhsl',
+            h: hue,
+            s: saturation,
+            l: lightness,
+          }
+
+          colors.push(formatCss(convertOkhslToOklab(color)))
+        }
+        palette.push(colors)
+      }
+      this.palette = palette.reverse()
+    },
+
+    colorForHue(hue: number, selected: boolean): string {
+      const color: Okhsl = {
+        mode: 'okhsl',
+        h: hue,
+        s: selected ? 0.75 : 0.7,
+        l: selected ? 0.75 : 0.7,
+      }
+      return formatCss(convertOkhslToOklab(color))
+    },
+
+    init() {
+      this.restoreState()
+      this.$watch('selectedHue', (newId) => {
+        if (newId === null) {
+          this.hueCircleHue = 0
+          return
+        }
+        this.hueCircleHue = this.hues.find((h) => h.id === newId)!.value
+      })
+      this.$watch('hueCircleHue', (newValue) => {
+        if (this.selectedHue == null) return
+        this.hues = this.hues.map((h) => {
+          if (h.id !== this.selectedHue) return h
+          return { ...h, value: Math.round(newValue) }
+        })
+      })
+
+      this.$watch('hues', () => requestCompute(this))
+      this.$watch('steps', () => requestCompute(this))
+      this.$watch('minSaturation', () => requestCompute(this))
+      this.$watch('maxSaturation', () => requestCompute(this))
+      this.$watch('minLightness', () => requestCompute(this))
+      this.$watch('maxLightness', () => requestCompute(this))
+
+      this.computePalette()
+
+      boundHandler = (ev) => handler(this, ev)
+      document.body.addEventListener('click', boundHandler)
+    },
+
+    destroy() {
+      document.body.removeEventListener('click', boundHandler)
+    },
+
+    addHue() {
+      const h = newHue(0)
+      this.hues = [...this.hues, h]
+      this.selectedHue = h.id
+    },
+
+    moveHue(index, to) {
+      if (to < 0 || to >= this.hues.length) return
+      if (index === to) return
+      const movedHue = this.hues[index]
+      let newHues: Hue[]
+      if (index < to) {
+        // 0 1 2 3 4 5
+        // 1 -> 3
+        // 0 2 3 1 4 5
+        // [:1] .. [1+1:3+1] .. v .. [3+1:]
+        newHues = [
+          ...this.hues.slice(0, index),
+          ...this.hues.slice(index + 1, to + 1),
+          movedHue,
+          ...this.hues.slice(to + 1),
+        ]
+      } else {
+        // 0 1 2 3 4 5
+        // 3 -> 1
+        // 0 3 1 2 4 5
+        // [:1] .. v .. [1:3] .. [3+1:]
+        newHues = [
+          ...this.hues.slice(0, to),
+          movedHue,
+          ...this.hues.slice(to, index),
+          ...this.hues.slice(index + 1),
+        ]
+      }
+
+      this.hues = newHues
+    },
+
+    updateHue(id: string, hue: string) {
+      const hueValue = parseInt(hue, 10)
+      if (isNaN(hueValue) || hueValue < 0 || hueValue > 360) {
+        this.hues = this.hues
+      } else {
+        this.hues = this.hues.map((h) =>
+          h.id === id ? { ...h, value: hueValue } : h
+        )
+      }
+    },
+
+    deleteHue(id) {
+      if (this.hues.length <= 1) return
+      this.hues = this.hues.filter((h) => h.id !== id)
+      if (this.selectedHue === id) {
+        this.selectedHue = null
+      }
+    },
+  }
+}

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en" class="min-h-full">
+  <head>
+    <title>Okhsl Palette Generator</title>
+
+    {{>head}}
+
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="min-h-full">
+    <main x-data="palettegenerator" class="col-span-1 col-start-2 mt-16 mb-8">
+      <h1 class="mb-4 text-5xl font-bold">Okhsl Palette Generator</h1>
+      <div class="flex items-center gap-4 mb-8">
+        <button
+          x-on:click="copyPermalink()"
+          class="flex items-center gap-2 py-1 pl-4 pr-5 text-lg font-medium rounded-full cursor-pointer bg-black/10 hover:bg-black/20 active:bg-black/30"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="26"
+            height="26"
+            fill="#000000"
+            viewBox="0 0 256 256"
+          >
+            <path
+              d="M200,32H163.74a47.92,47.92,0,0,0-71.48,0H56A16,16,0,0,0,40,48V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V48A16,16,0,0,0,200,32Zm-72,0a32,32,0,0,1,32,32H96A32,32,0,0,1,128,32Zm72,184H56V48H82.75A47.93,47.93,0,0,0,80,64v8a8,8,0,0,0,8,8h80a8,8,0,0,0,8-8V64a47.93,47.93,0,0,0-2.75-16H200Z"
+            ></path>
+          </svg>
+          <span>Copy permalink</span>
+        </button>
+        <button
+          x-on:click="reset()"
+          class="flex items-center gap-2 py-1 pl-4 pr-5 text-lg font-medium rounded-full cursor-pointer bg-black/10 hover:bg-black/20 active:bg-black/30"
+        >
+          Reset to defaults
+        </button>
+      </div>
+
+      <div class="flex items-center gap-4 mb-4 text-3xl font-semibold w-max">
+        <h2>Select hues</h2>
+        <button
+          x-on:click="addHue()"
+          class="inline-flex items-center justify-center rounded-full cursor-pointer w-9 h-9 bg-black/10 hover:bg-black/20"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="w-5 h-5 text-black"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="3"
+            stroke-linecap="square"
+            stroke-linejoin="miter"
+            aria-hidden="true"
+            role="img"
+            focusable="false"
+          >
+            <path
+              d="M 12 6 v 12
+                 M 6 12 h 12"
+            />
+          </svg>
+        </button>
+      </div>
+      <div class="flex max-w-full gap-2">
+        <div>
+          <div
+            class="flex flex-wrap gap-2 h-min max-w-[712px]"
+            x-sort="moveHue($item, $position)"
+          >
+            <template x-for="(hue, index) in hues" :key="hue.id + index">
+              <div
+                class="flex items-center justify-center w-16 h-16 border-2 rounded-lg cursor-pointer"
+                x-sort:item="index"
+                x-bind:style="{ backgroundColor: colorForHue(hue.value, selectedHue === hue.id) }"
+                x-bind:class="{ 'border-3 font-bold': selectedHue === hue.id }"
+                x-on:click.prevent="selectedHue = hue.id"
+                x-on:contextmenu.prevent="deleteHue(hue.id)"
+              >
+                <input
+                  x-model="hue.value"
+                  x-bind:name="'hue-' + hue.id"
+                  class="w-8 text-center min-w-none"
+                />
+                <span>°</span>
+              </div>
+            </template>
+          </div>
+          <h2 class="mt-8 mb-4 text-3xl font-semibold">Set palette function</h2>
+          <div class="flex items-center gap-2 mb-2 ml-4">
+            <label for="steps" class="text-lg font-medium">Steps</label>
+            <input
+              x-model.number="steps"
+              id="steps"
+              type="number"
+              step="1"
+              min="2"
+              max="12"
+              class="w-16 px-2 py-1 text-center border [&::-webkit-inner-spin-button]:-mr-2 [&::-webkit-inner-spin-button]:opacity-100"
+            />
+          </div>
+          <div class="flex items-center gap-2 mb-2 ml-4">
+            <label for="min-saturation" class="text-lg font-medium">
+              Saturation min
+            </label>
+            <input
+              x-model.number="minSaturation"
+              id="min-saturation"
+              type="number"
+              step="0.01"
+              min="0"
+              max="1"
+              class="w-64 px-2 py-1 text-left border [&::-webkit-inner-spin-button]:-mr-2 [&::-webkit-inner-spin-button]:opacity-100"
+            />
+            <span class="text-lg font-medium">max</span>
+            <input
+              x-model.number="maxSaturation"
+              id="max-saturation"
+              type="number"
+              step="0.01"
+              min="0"
+              max="1"
+              class="w-64 px-2 py-1 text-left border [&::-webkit-inner-spin-button]:-mr-2 [&::-webkit-inner-spin-button]:opacity-100"
+            />
+          </div>
+
+          <div class="flex items-center gap-2 mb-4 ml-4">
+            <label for="min-lightness" class="text-lg font-medium">
+              Lightness min
+            </label>
+            <input
+              x-model.number="minLightness"
+              id="min-lightness"
+              type="number"
+              step="0.01"
+              min="0"
+              max="1"
+              class="w-64 px-2 py-1 text-left border [&::-webkit-inner-spin-button]:-mr-2 [&::-webkit-inner-spin-button]:opacity-100"
+            />
+            <span class="text-lg font-medium">max</span>
+            <input
+              x-model.number="maxLightness"
+              id="max-lightness"
+              type="number"
+              step="0.01"
+              min="0"
+              max="1"
+              class="w-64 px-2 py-1 text-left border [&::-webkit-inner-spin-button]:-mr-2 [&::-webkit-inner-spin-button]:opacity-100"
+            />
+          </div>
+
+          <div x-data="palettefunction" style="margin-bottom: 400px">
+            <canvas x-canvas width="400" height="400"></canvas>
+            <script>
+              /** @type {HTMLCanvasElement} */
+              const canvas = document.currentScript.previousElementSibling
+              if (window.innerWidth > 1024) {
+                canvas.width = canvas.height = 512
+                canvas.parentElement.style.marginBottom = '512px'
+              }
+            </script>
+            <div
+              x-handle-min
+              class="w-4 h-4 bg-white border rounded-full"
+            ></div>
+            <div
+              x-handle-max
+              class="flex items-center justify-center w-4 h-4 bg-white border rounded-full"
+            >
+              <div
+                class="w-2 h-2 bg-black rounded-full pointer-events-none"
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex-grow"></div>
+
+        <div
+          x-data="huecircle(10)"
+          x-modelable="hue"
+          x-model="hueCircleHue"
+          class="w-48 h-48 rounded-full"
+        >
+          <canvas x-canvas></canvas>
+          <div x-handle class="w-6 h-6 bg-white border-2 rounded-full"></div>
+        </div>
+      </div>
+
+      <h1 class="mt-8 mb-4 text-3xl font-semibold">Generated Palette</h1>
+
+      <div
+        class="grid gap-3 lg:gap-4 w-max"
+        x-bind:style="{ gridTemplateColumns: 'repeat(' + palette[0].length + ', 1fr)' }"
+      >
+        <template x-for="(swatch, i) in palette" :key="Math.random()">
+          <template x-for="(color, j) in swatch" :key="Math.random()">
+            <div
+              class="flex items-center justify-between p-2 border rounded-lg cursor-pointer w-14 h-14 lg:w-16 lg:h-16"
+              x-bind:style="{ backgroundColor: color }"
+            ></div>
+          </template>
+        </template>
+      </div>
+    </main>
+
+    {{>footer}} {{>toaster}}
+
+    <script type="module" src="./entry.ts"></script>
+  </body>
+</html>

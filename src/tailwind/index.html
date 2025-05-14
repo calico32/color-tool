@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>TailwindCSS Palette</title>
+
+    {{>head}}
+
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="min-h-full">
+    <main x-data="tailwindcolors" class="col-span-1 col-start-2 mt-16 mb-4">
+      <h1 class="mb-6 text-5xl font-bold">TailwindCSS Color Palette</h1>
+      <h2 class="mb-2 text-xl font-medium">Copy settings</h2>
+      <div class="grid grid-cols-2 mb-2">
+        <div class="flex flex-wrap justify-start h-min">
+          <template x-for="(preview, name) in copyFormatPreviews" :key="name">
+            <div class="flex items-center gap-1 group w-max h-max">
+              <input
+                x-bind:id="'copy-format-' + name"
+                type="radio"
+                name="copy-format"
+                x-bind:value="name"
+                x-bind:checked="selectedCopyFormat === name"
+                x-on:change="selectedCopyFormat = name"
+                class="cursor-pointer"
+              />
+              <label
+                x-bind:for="'copy-format-' + name"
+                class="pr-5 cursor-pointer"
+                x-bind:class="{ 'font-bold': selectedCopyFormat === name,}"
+                x-text="name"
+                x-ref="label"
+              ></label>
+              <div
+                class="hidden p-1 px-2 bg-white border rounded-md shadow-lg group-hover:block"
+                x-anchor.top.offset.5="$refs.label"
+              >
+                <code x-text="preview"></code>
+              </div>
+            </div>
+          </template>
+        </div>
+        <div class="flex flex-wrap justify-start h-min">
+          <template x-for="(preview, name) in swatchCopyFormats" :key="name">
+            <div class="flex gap-1 pr-4 group w-max">
+              <input
+                x-bind:id="'copy-format-' + name"
+                type="radio"
+                name="swatch-copy-format"
+                x-bind:value="name"
+                x-bind:checked="selectedSwatchCopyFormat === name"
+                x-on:change="selectedSwatchCopyFormat = name"
+                class="cursor-pointer"
+              />
+              <label
+                x-bind:for="'copy-format-' + name"
+                class="pr-5 cursor-pointer"
+                x-bind:class="{ 'font-bold': selectedSwatchCopyFormat === name }"
+                x-text="name"
+                x-ref="label"
+              ></label>
+              <div
+                class="hidden p-1 px-2 bg-white border rounded-md shadow-lg group-hover:block"
+                x-anchor.top.offset.5="$refs.label"
+              >
+                <code x-text="generateSwatchCopyFormatPreview(preview)"></code>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <table class="w-full table-auto">
+        <colgroup x-data="{ percent: 100 / (shades.length + 1) }">
+          <col :style="`width: ${percent}%`" />
+          <template x-for="shade in shades">
+            <col :style="`width: ${percent}%`" />
+          </template>
+        </colgroup>
+
+        <thead>
+          <tr>
+            <td></td>
+            <template x-for="shade in shades">
+              <td
+                class="text-lg text-center align-middle cursor-pointer h-14 lg:h-16 lg:text-xl hover:underline"
+                x-text="shade"
+                x-on:click="copyShadeSwatchToClipboard($el, shade)"
+                x-bind:id="'shade-' + shade"
+              ></td>
+            </template>
+          </tr>
+        </thead>
+
+        <tbody>
+          <template x-for="color in colors">
+            <tr>
+              <td
+                class="px-2 font-medium tracking-wider align-middle cursor-pointer h-14 lg:h-16 lg:text-lg hover:underline"
+                x-text="color.toUpperCase()"
+                x-bind:id="'color-' + color"
+                x-on:click="copyColorSwatchToClipboard($el, color)"
+              ></td>
+
+              <template x-for="shade in shades">
+                <td
+                  class="text-lg text-center align-middle cursor-pointer lg:text-xl hover:underline"
+                  x-data="{ fg: contrastColor(swatches[color][shade], ['white', 'black']) }"
+                  x-bind:style="{
+                    backgroundColor: swatches[color][shade],
+                    color: fg,
+                    borderColor: fg,
+                }"
+                  x-bind:class="{
+                    'border': selectedColor === color && selectedShade === shade,
+                  }"
+                  x-text="shade"
+                  x-on:click="
+                    if (selectedColor === color && selectedShade === shade) {
+                      copyToClipboard($el, swatches[color][shade])
+                    } else {
+                      selectedColor = color
+                      selectedShade = shade
+                    }
+                  "
+                ></td>
+              </template>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+
+      <template x-for="color in colors">
+        <div
+          class="hidden p-1 px-2 bg-white border rounded-md shadow-lg"
+          x-bind:id="'color-' + color + '-tooltip'"
+          x-anchor.top.offset.-10="document.getElementById('color-' + color)"
+        >
+          copy all <strong x-text="color"></strong> colors to clipboard
+        </div>
+      </template>
+
+      <template x-for="shade in shades">
+        <div
+          class="hidden p-1 px-2 bg-white border rounded-md shadow-lg"
+          x-bind:id="'shade-' + shade + '-tooltip'"
+          x-anchor.top.offset.-10="document.getElementById('shade-' + shade)"
+        >
+          copy all <strong x-text="shade"></strong> colors to clipboard
+        </div>
+      </template>
+
+      <div
+        class="fixed bg-white border rounded-md shadow-lg top-4 left-4 w-max"
+        x-show="selectedColor != null && selectedShade != null"
+        x-data="draggable('color-tooltip')"
+        x-bind:style="{
+          backgroundColor: swatches[selectedColor]?.[selectedShade],
+          color: contrastColor(swatches[selectedColor]?.[selectedShade], ['white', 'black']),
+        }"
+      >
+        <div
+          x-draggable-header
+          class="w-full h-5 rounded-t-md cursor-grab"
+          x-bind:style="{
+            backgroundColor: alternate(selectedColor, selectedShade),
+          }"
+        >
+          <button
+            class="float-right w-5 h-5 bg-red-400 cursor-pointer rounded-tr-md"
+            x-bind:class="{
+              'bg-red-800': selectedColor === 'red' && ['300', '400', '500'].includes(selectedShade),
+            }"
+            x-on:click="selectedColor = null; selectedShade = null"
+          ></button>
+        </div>
+        <div class="px-2 py-2">
+          <p class="text-lg">
+            <strong x-text="capitalize(selectedColor)"></strong>
+            <span x-text="selectedShade"></span>
+          </p>
+
+          <table>
+            <template x-for="(format, name) in copyFormats">
+              <tr>
+                <td class="pr-2">
+                  <strong x-text="name"></strong>
+                </td>
+                <td
+                  x-data="{ formatted: '' }"
+                  x-effect="formatted = selectedColor && selectedShade ? formatColor(swatches[selectedColor][selectedShade], format) : ''"
+                >
+                  <code
+                    x-text="formatted"
+                    class="cursor-pointer hover:underline"
+                    x-on:click="copyTextToClipboard($el, formatted)"
+                  ></code>
+                </td>
+              </tr>
+            </template>
+          </table>
+        </div>
+      </div>
+    </main>
+
+    {{>footer}} {{>toaster}}
+
+    <script type="module" src="./entry.ts"></script>
+  </body>
+</html>

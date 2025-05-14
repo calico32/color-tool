@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en" class="min-h-full">
+  <head>
+    <title>Color Tools</title>
+
+    {{>head}}
+
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="min-h-full">
+    <main class="col-span-1 col-start-2 mt-16 mb-8">
+      <h1 class="mb-4 text-5xl font-bold">Color Tools</h1>
+      <div class="flex flex-col items-stretch gap-4 mb-8">
+        <a
+          href="/palette/"
+          class="flex flex-col gap-2 px-8 py-6 bg-red-100 border rounded-lg shadow-md hover:bg-red-200"
+        >
+          <h2 class="text-3xl font-bold">Okhsl Palette Generator</h2>
+          <p>
+            Generate a color palette in the perceptually-uniform Okhsl color
+            space.
+          </p>
+        </a>
+        <a
+          href="/tailwind/"
+          class="flex flex-col gap-2 px-8 py-6 bg-orange-100 border rounded-lg shadow-md hover:bg-orange-200"
+        >
+          <h2 class="text-3xl font-bold">TailwindCSS Color Palette</h2>
+          <p>
+            View and copy the TailwindCSS color palette in different formats.
+          </p>
+        </a>
+      </div>
+    </main>
+
+    {{>footer}} {{>toaster}}
+
+    <script type="module" src="./entry.ts"></script>
+  </body>
+</html>

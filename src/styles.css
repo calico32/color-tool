@@ -1,0 +1,21 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter', sans-serif;
+  --font-mono: 'Monaspace Neon', monospace;
+}
+
+body {
+  @apply font-sans;
+  --content-width: 768px;
+  display: grid;
+  grid-template-columns: 1fr min(var(--content-width), 100%) 1fr;
+}
+
+@media (min-width: 1024px) {
+  body {
+    --content-width: 60rem;
+  }
+}
+
+/*! x-custom-css */

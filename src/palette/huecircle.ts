@@ -28,6 +28,11 @@ export default function (
   handle.style.cursor = 'grab'
 
   const canvasSize = Math.min(this.$el.clientWidth, this.$el.clientHeight)
+
+  if (canvasSize < 20) {
+    throw new Error('HueCircle too small, minimum size is 20px x 20px')
+  }
+
   canvas.style.width = canvas.style.height = canvasSize + 'px'
 
   const radius = canvasSize / 2

@@ -4,6 +4,7 @@ import {
   formatCss,
   lerp,
   modeOklab,
+  round,
   useMode,
   type Okhsl,
 } from 'culori/fn'
@@ -11,6 +12,11 @@ import { timedRaf } from '../common/timing'
 import type { AlpineThis, Persist } from '../types'
 
 useMode(modeOklab) // required to format colors as oklab
+
+interface PaletteColor {
+  css: string
+  display: string
+}
 
 export interface PaletteGenerator {
   /** hues in degrees */
@@ -22,7 +28,7 @@ export interface PaletteGenerator {
   maxSaturation: Persist<number>
   minLightness: Persist<number>
   maxLightness: Persist<number>
-  palette: string[][]
+  palette: PaletteColor[][]
 
   reset(): void
   getPermalink(): URL
@@ -37,7 +43,7 @@ export interface PaletteGenerator {
 }
 
 interface PaletteGeneratorState {
-  h: number[]
+  h: (number | [number, string])[]
   st: number
   s1: number
   s2: number
@@ -47,14 +53,17 @@ interface PaletteGeneratorState {
 
 interface Hue {
   id: string
+  name?: string
   value: number
 }
 
-function newHue(value: number): Hue {
-  return {
-    id: Math.random().toString(36).substring(2, 15),
-    value,
+function newHue(value: number | readonly [number, string]): Hue {
+  const id = Math.random().toString(36).substring(2, 15)
+  if (Array.isArray(value)) {
+    return { id, name: value[1], value: value[0] }
   }
+
+  return { id, value: value as number }
 }
 
 function debounce<T extends (...args: any[]) => any>(
@@ -67,6 +76,21 @@ function debounce<T extends (...args: any[]) => any>(
     timeout = setTimeout(() => func(...args), waitMs)
   }
 }
+
+const defaultHues = [
+  [0, 'rose'],
+  [30, 'apricot'],
+  [60, 'orange'],
+  [90, 'amber'],
+  [120, 'lime'],
+  [150, 'emerald'],
+  [180, 'teal'],
+  [210, 'cyan'],
+  [240, 'ocean'],
+  [270, 'blue'],
+  [300, 'purple'],
+  [330, 'magenta'],
+] as const
 
 export default function (
   this: AlpineThis<PaletteGenerator>
@@ -97,9 +121,7 @@ export default function (
   }
 
   return {
-    hues: this.$persist(
-      [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map(newHue)
-    ),
+    hues: this.$persist(defaultHues.map((h) => newHue(h))),
     selectedHue: null,
     hueCircleHue: 0,
     steps: this.$persist(10),
@@ -115,9 +137,7 @@ export default function (
         return
       }
 
-      this.hues = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map(
-        newHue
-      )
+      this.hues = defaultHues.map(newHue)
       this.selectedHue = null
       this.hueCircleHue = 0
       this.steps = 10
@@ -126,12 +146,13 @@ export default function (
       this.minLightness = 0.08
       this.maxLightness = 0.954
       this.palette = []
+      this.computePalette()
     },
 
     getPermalink() {
       const url = new URL(window.location.href)
       const state: PaletteGeneratorState = {
-        h: this.hues.map((h) => h.value),
+        h: this.hues.map((h) => (h.name ? [h.value, h.name] : h.value)),
         st: Number(this.steps),
         s1: Number(this.minSaturation),
         s2: Number(this.maxSaturation),
@@ -176,10 +197,24 @@ export default function (
         minLightness,
         maxLightness,
       } = this
-      const palette: string[][] = []
+
+      const r = round(2)
+
+      const previousPalette = this.palette
+      if (
+        previousPalette.length === hues.length &&
+        previousPalette[0].length === steps &&
+        previousPalette[0][0].display ===
+          `okhsl(${r(hues[0].value)}°, ${r(minSaturation)}, ${r(minLightness)})`
+      ) {
+        // no need to recompute
+        return
+      }
+
+      const palette: PaletteColor[][] = []
       for (let i = 0; i < hues.length; i++) {
         const hue = hues[i].value
-        const colors: string[] = []
+        const colors: PaletteColor[] = []
         for (let j = 1; j <= steps; j++) {
           const t = j / steps
           const saturation = lerp(minSaturation, maxSaturation, t)
@@ -192,7 +227,10 @@ export default function (
             l: lightness,
           }
 
-          colors.push(formatCss(convertOkhslToOklab(color)))
+          const css = formatCss(convertOkhslToOklab(color))
+          const display = `okhsl(${r(color.h)}°, ${r(color.s)}, ${r(color.l)})`
+
+          colors.push({ css, display })
         }
         palette.push(colors)
       }

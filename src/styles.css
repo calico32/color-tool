@@ -3,6 +3,7 @@
 @theme {
   --font-sans: 'Inter', sans-serif;
   --font-mono: 'Monaspace Neon', monospace;
+  --breakpoint-xl: calc(162px + 64px + 560px + 64px + 900px);
 }
 
 body {

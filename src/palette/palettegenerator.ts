@@ -4,13 +4,17 @@ import {
   formatCss,
   lerp,
   modeOklab,
+  modeOklch,
   round,
   useMode,
+  type Color,
   type Okhsl,
 } from 'culori/fn'
 import { timedRaf } from '../common/timing'
+import { toast } from '../toast'
 import type { AlpineThis, Persist } from '../types'
 
+useMode(modeOklch) // required to format colors as oklch
 useMode(modeOklab) // required to format colors as oklab
 
 interface PaletteColor {
@@ -33,6 +37,9 @@ export interface PaletteGenerator {
   reset(): void
   getPermalink(): URL
   copyPermalink(): void
+  copyPalette(
+    format: 'css' | 'tailwind' | 'json' | 'json-arrays' | 'json-flat'
+  ): void
   restoreState(): void
   computePalette(): void
   colorForHue(hue: number, selected: boolean): string
@@ -74,6 +81,31 @@ function debounce<T extends (...args: any[]) => any>(
   return function (...args: Parameters<T>) {
     if (timeout) clearTimeout(timeout)
     timeout = setTimeout(() => func(...args), waitMs)
+  }
+}
+
+/**
+ * KeysFor\<T, V> is the union of all keys of T whose values extends V, including
+ * nullable values.
+ */
+type KeysFor<T, V> = {
+  [K in keyof T]-?: NonNullable<T[K]> extends never
+    ? never
+    : NonNullable<T[K]> extends V
+    ? K
+    : never
+}[keyof T]
+
+function roundColor(n: number): <T extends Color>(color: T) => T {
+  const r = round(n)
+  return (color) => {
+    color = { ...color }
+    for (const [k, v] of Object.entries(color)) {
+      if (typeof v == 'number') {
+        color[k as KeysFor<Color, number>] = r(v)
+      }
+    }
+    return color
   }
 }
 
@@ -171,6 +203,100 @@ export default function (
       })
     },
 
+    copyPalette(format) {
+      switch (format) {
+        case 'css': {
+          const palette = this.palette.flatMap((swatch, i) => {
+            const hue = this.hues[i]
+            const name = hue.name || `h${hue.value}`
+            return swatch
+              .toReversed()
+              .map((color, j) => `  --${name}-${j + 1}: ${color.css};`)
+          })
+
+          const css = `:root {\n${palette.join('\n')}\n}`
+          navigator.clipboard.writeText(css).then(() => {
+            toast('Copied palette to clipboard as CSS variables', {
+              type: 'success',
+            })
+          })
+          break
+        }
+        case 'tailwind': {
+          const palette = this.palette.flatMap((swatch, i) => {
+            const hue = this.hues[i]
+            const name = hue.name || `h${hue.value}`
+            return swatch
+              .toReversed()
+              .map((color, j) => `  --color-${name}-${j + 1}: ${color.css};`)
+          })
+
+          const tailwind = palette.join('\n')
+
+          navigator.clipboard.writeText(tailwind).then(() => {
+            toast('Copied palette to clipboard as TailwindCSS colors', {
+              type: 'success',
+              description: 'Paste inside TailwindCSS @theme {} to use',
+            })
+          })
+
+          break
+        }
+        case 'json': {
+          const palette = Object.fromEntries(
+            this.palette.map((swatch, i) => {
+              const hue = this.hues[i]
+              const name = hue.name || `h${hue.value}`
+              return [
+                name,
+                Object.fromEntries(
+                  swatch.toReversed().map((color, j) => [j + 1, color.css])
+                ),
+              ]
+            })
+          )
+          navigator.clipboard.writeText(JSON.stringify(palette)).then(() => {
+            toast('Copied palette to clipboard as JSON', {
+              type: 'success',
+            })
+          })
+          break
+        }
+        case 'json-arrays': {
+          const palette = Object.fromEntries(
+            this.palette.map((swatch, i) => {
+              const hue = this.hues[i]
+              const name = hue.name || `h${hue.value}`
+              return [name, swatch.toReversed().map((color) => color.css)]
+            })
+          )
+          navigator.clipboard.writeText(JSON.stringify(palette)).then(() => {
+            toast('Copied palette to clipboard as JSON arrays', {
+              type: 'success',
+            })
+          })
+          break
+        }
+        case 'json-flat': {
+          const palette = Object.fromEntries(
+            this.palette.flatMap((swatch, i) => {
+              const hue = this.hues[i]
+              const name = hue.name || `h${hue.value}`
+              return swatch
+                .toReversed()
+                .map((color, j) => [`${name}-${j + 1}`, color.css])
+            })
+          )
+          navigator.clipboard.writeText(JSON.stringify(palette)).then(() => {
+            toast('Copied palette to clipboard as JSON arrays', {
+              type: 'success',
+            })
+          })
+          break
+        }
+      }
+    },
+
     restoreState() {
       const url = new URL(window.location.href)
       const stateString = decodeURIComponent(url.hash.substring(1))
@@ -198,18 +324,7 @@ export default function (
         maxLightness,
       } = this
 
-      const r = round(2)
-
-      const previousPalette = this.palette
-      if (
-        previousPalette.length === hues.length &&
-        previousPalette[0].length === steps &&
-        previousPalette[0][0].display ===
-          `okhsl(${r(hues[0].value)}°, ${r(minSaturation)}, ${r(minLightness)})`
-      ) {
-        // no need to recompute
-        return
-      }
+      const rc = roundColor(4)
 
       const palette: PaletteColor[][] = []
       for (let i = 0; i < hues.length; i++) {
@@ -220,21 +335,26 @@ export default function (
           const saturation = lerp(minSaturation, maxSaturation, t)
           const lightness = lerp(minLightness, maxLightness, t)
 
-          const color: Okhsl = {
+          let color: Okhsl = {
             mode: 'okhsl',
             h: hue,
             s: saturation,
             l: lightness,
           }
 
-          const css = formatCss(convertOkhslToOklab(color))
-          const display = `okhsl(${r(color.h)}°, ${r(color.s)}, ${r(color.l)})`
+          const css = formatCss(
+            rc(modeOklch.fromMode.oklab(convertOkhslToOklab(color)))
+          )
+
+          color = rc(color)
+          const display = `okhsl(${color.h}°, ${color.s}, ${color.l})`
 
           colors.push({ css, display })
         }
         palette.push(colors)
       }
-      this.palette = palette.reverse()
+      this.palette = palette
+      console.log(palette)
     },
 
     colorForHue(hue: number, selected: boolean): string {

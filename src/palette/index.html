@@ -41,7 +41,7 @@
           </button>
         </div>
       </div>
-      <div class="flex gap-16 xl:contents">
+      <div class="flex gap-12 lg:gap-16 xl:contents">
         <div>
           <div
             class="flex items-center gap-4 mb-4 text-3xl font-semibold w-max"
@@ -217,18 +217,37 @@
           >
             TailwindCSS Theme
           </button>
-          <button
-            x-on:click="copyPalette('json')"
-            class="flex items-center gap-2 py-1 pl-4 pr-5 text-lg font-medium rounded-full cursor-pointer bg-black/10 hover:bg-black/20 active:bg-black/30"
-          >
-            JSON
-          </button>
+
+          <div class="flex items-center">
+            <span class="mr-2 font-medium">JSON:</span>
+            <button
+              x-on:click="copyPalette('json')"
+              class="flex items-center gap-2 px-4 py-1 text-lg font-medium rounded-l-full cursor-pointer bg-black/10 hover:bg-black/20 active:bg-black/30"
+            >
+              Objects
+            </button>
+            <button
+              x-on:click="copyPalette('json-arrays')"
+              class="flex items-center gap-2 px-4 py-1 text-lg font-medium cursor-pointer border-black/20 border-x-2 bg-black/10 hover:bg-black/20 active:bg-black/30"
+            >
+              Arrays
+            </button>
+            <button
+              x-on:click="copyPalette('json-flat')"
+              class="flex items-center gap-2 px-4 py-1 text-lg font-medium rounded-r-full cursor-pointer bg-black/10 hover:bg-black/20 active:bg-black/30"
+            >
+              Flat
+            </button>
+          </div>
         </div>
         <div
           class="grid gap-3 lg:gap-4 xl:!gap-3 w-max"
           x-bind:style="{ gridTemplateColumns: 'repeat(' + palette[0].length + ', 1fr)' }"
         >
-          <template x-for="(swatch, i) in palette" :key="Math.random()">
+          <template
+            x-for="(swatch, i) in palette.toReversed()"
+            :key="Math.random()"
+          >
             <template x-for="(color, j) in swatch" :key="Math.random()">
               <div
                 x-data="{ hover: false, tooltipHover: false }"
@@ -238,17 +257,6 @@
                 x-on:mouseenter="hover = true"
                 x-on:mouseleave="hover = false"
               >
-                <!-- <template x-teleport="body">
-                  <div
-                    class="z-10 px-3 py-1.5 bg-white border rounded-lg shadow-md"
-                    x-show="hover || tooltipHover"
-                    x-anchor.top.offset.-5="$refs.color"
-                    x-on:mouseenter="tooltipHover = true"
-                    x-on:mouseleave="tooltipHover = false"
-                  >
-                    <pre x-text="color.display"></pre>
-                  </div>
-                </template> -->
               </div>
             </template>
           </template>

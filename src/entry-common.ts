@@ -1,3 +1,6 @@
+import { injectTimedRaf } from './common/timing'
+injectTimedRaf()
+
 import Alpine from 'alpinejs'
 import { registerSW } from 'virtual:pwa-register'
 import { toast } from './toast'

@@ -1,3 +1,4 @@
+import anchor from '@alpinejs/anchor'
 import persist from '@alpinejs/persist'
 import sort from '@alpinejs/sort'
 import Alpine from 'alpinejs'
@@ -16,4 +17,5 @@ Alpine.data('palettegenerator', palettegenerator)
 
 Alpine.plugin(persist)
 Alpine.plugin(sort)
+Alpine.plugin(anchor)
 Alpine.start()

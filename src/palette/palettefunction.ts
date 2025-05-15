@@ -1,5 +1,6 @@
 import { type AlpineComponent } from 'alpinejs'
 import { lerp, unlerp } from 'culori/fn'
+import { timedRaf } from '../common/timing'
 import type { AlpineThis } from '../types'
 import type { PaletteGenerator } from './palettegenerator'
 
@@ -133,7 +134,7 @@ export default function (
   function requestDraw(context: AlpineThis<PaletteFunction>) {
     if (drawRequested) return
     drawRequested = true
-    requestAnimationFrame(() => {
+    timedRaf('palettefunction', () => {
       drawRequested = false
       update(context)
     })

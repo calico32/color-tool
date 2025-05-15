@@ -7,6 +7,7 @@ import {
   useMode,
   type Okhsl,
 } from 'culori/fn'
+import { timedRaf } from '../common/timing'
 import type { AlpineThis, Persist } from '../types'
 
 useMode(modeOklab) // required to format colors as oklab
@@ -88,7 +89,7 @@ export default function (
   function requestCompute(ctx: AlpineThis<PaletteGenerator>) {
     if (computeRequested) return
     computeRequested = true
-    requestAnimationFrame(() => {
+    timedRaf('palettegenerator', () => {
       computeRequested = false
       ctx.computePalette()
       updateUrl(ctx)

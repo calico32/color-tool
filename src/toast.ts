@@ -8,7 +8,7 @@ export function toast(
     message: message,
     type: options.type ?? 'info',
     description: options.description ?? '',
-    position: options.position ?? 'bottom-center',
+    position: options.position ?? 'top-center',
     html: options.html ?? '',
   }
 

@@ -121,7 +121,7 @@ export default function (
   }
 
   return {
-    hues: this.$persist(defaultHues.map((h) => newHue(h))),
+    hues: this.$persist(defaultHues.map(newHue)),
     selectedHue: null,
     hueCircleHue: 0,
     steps: this.$persist(10),
